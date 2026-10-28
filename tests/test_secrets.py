@@ -14,7 +14,7 @@ def test_detects_ai_keys_and_masks():
     hits = secrets.scan_text(text)
     kinds = {k for k, _, _ in hits}
     assert {"OpenAI key", "Anthropic key", "Hugging Face token", "AWS access key"} <= kinds
-    for _, sev, masked in hits:
+    for _, _, masked in hits:
         assert "…" in masked and len(masked) < 12  # never the full value
     assert all(sev.rank >= Severity.HIGH.rank for k, sev, _ in hits if k != "Generic password assignment")
 

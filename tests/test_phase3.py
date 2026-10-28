@@ -9,7 +9,6 @@ from guardian import hub, registry
 from guardian.models import Severity
 from guardian.modules import containers, package_provenance
 
-
 # --- registry / slopsquatting ------------------------------------------------------
 
 def test_edit_distance_and_typosquat_candidates():

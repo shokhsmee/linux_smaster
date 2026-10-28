@@ -3,7 +3,6 @@ import json
 from guardian.models import Severity
 from guardian.modules import agent_guard, egress, kernel_hardening, process_behavior, rootkit
 
-
 # --- M7 process behaviour -------------------------------------------------------
 
 def P(**kw):
@@ -112,7 +111,7 @@ def test_agent_config_baseline_and_change(ctx, tmp_path, monkeypatch):
     root = tmp_path / "home" / "dev"
     root.mkdir(parents=True)
     monkeypatch.setattr(agent_guard, "_homes", lambda: [root])
-    monkeypatch.setattr(agent_guard, "agent_processes", lambda: [])
+    monkeypatch.setattr(agent_guard, "agent_processes", list)
     (root / ".mcp.json").write_text('{"mcpServers": {}}')
     (root / ".mcp.json").chmod(0o600)
     first = agent_guard.run(ctx)

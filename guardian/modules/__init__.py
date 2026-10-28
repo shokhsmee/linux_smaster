@@ -17,11 +17,9 @@ class Context:
 
 def all_modules():
     # Phase 1
-    from . import exposure, patches, persistence, secrets, ssh_guard
     # Phase 2
-    from . import agent_guard, egress, kernel_hardening, process_behavior, rootkit
     # Phase 3
-    from . import containers, package_provenance
+    from . import agent_guard, containers, egress, exposure, kernel_hardening, package_provenance, patches, persistence, process_behavior, rootkit, secrets, ssh_guard
 
     return [exposure, ssh_guard, patches, secrets, persistence,
             process_behavior, rootkit, kernel_hardening, agent_guard, egress,

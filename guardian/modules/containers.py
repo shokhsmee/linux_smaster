@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 
 from ..models import Finding, Severity
-from ..utils import have, run as sh
+from ..utils import have
+from ..utils import run as sh
 from . import Context
 from .secrets import scan_text
 
@@ -32,7 +33,7 @@ def _cli() -> str | None:
 def _inspect(cli: str, ids: list[str]) -> list[dict]:
     if not ids:
         return []
-    rc, out, _ = sh([cli, "inspect"] + ids, timeout=60)
+    rc, out, _ = sh([cli, "inspect", *ids], timeout=60)
     if rc != 0:
         return []
     try:

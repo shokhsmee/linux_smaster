@@ -12,7 +12,8 @@ import re
 from pathlib import Path
 
 from ..models import Finding, Severity
-from ..utils import have, read_text, run as sh
+from ..utils import have, read_text
+from ..utils import run as sh
 from . import Context
 
 NAME = "kernel_hardening"
@@ -83,7 +84,7 @@ def blacklisted_modules() -> set[str]:
 
 def module_available(name: str) -> bool:
     """Is the module buildable/loadable on this kernel (present under /lib/modules)?"""
-    rc, uname, _ = sh(["uname", "-r"], timeout=5)
+    _, uname, _ = sh(["uname", "-r"], timeout=5)
     base = Path("/lib/modules") / uname.strip()
     if not base.is_dir():
         return False
@@ -94,7 +95,7 @@ def module_available(name: str) -> bool:
 def sudo_version() -> tuple[int, ...] | None:
     if not have("sudo"):
         return None
-    rc, out, _ = sh(["sudo", "--version"], timeout=5)
+    _, out, _ = sh(["sudo", "--version"], timeout=5)
     m = re.search(r"Sudo version (\d+)\.(\d+)\.(\d+)(?:p(\d+))?", out)
     if not m:
         return None
@@ -159,7 +160,7 @@ def evaluate(vals: dict[str, str], loaded: set[str], blacklisted: set[str], sudo
 def run(ctx: Context) -> list[Finding]:
     if not Path("/proc/sys").is_dir():
         return [Finding(module=NAME, check="unsupported", severity=Severity.INFO, title="kernel checks need /proc/sys (Linux only)")]
-    keys = list(SYSCTLS) + ["kernel.unprivileged_userns_clone", "kernel.apparmor_restrict_unprivileged_userns", "user.max_user_namespaces"]
+    keys = [*SYSCTLS, "kernel.unprivileged_userns_clone", "kernel.apparmor_restrict_unprivileged_userns", "user.max_user_namespaces"]
     vals = sysctl_values(keys)
     lockdown = (read_text("/sys/kernel/security/lockdown") or "").strip()
     lsm = (read_text("/sys/kernel/security/lsm") or "").strip()

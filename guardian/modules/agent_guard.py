@@ -179,7 +179,7 @@ def config_targets(extra_roots: list[str], project_depth: int = 3) -> list[Path]
             elif p.is_dir():
                 targets += [s for s in p.rglob("*") if s.is_file()]
         # project-level files a few levels down (repos under the home dir)
-        for rel in (".mcp.json", ".cursor/mcp.json", ".claude/settings.json", ".claude/settings.local.json", ".vscode/mcp.json") + INSTRUCTION_FILES:
+        for rel in (".mcp.json", ".cursor/mcp.json", ".claude/settings.json", ".claude/settings.local.json", ".vscode/mcp.json", *INSTRUCTION_FILES):
             name = Path(rel).name
             try:
                 for p in root.rglob(name):

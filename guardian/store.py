@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import sqlite3
 from datetime import UTC, datetime
@@ -40,10 +41,8 @@ class Store:
         self.path = path
         self.conn = sqlite3.connect(path)
         self.conn.executescript(SCHEMA)
-        try:
+        with contextlib.suppress(OSError):
             path.chmod(0o600)
-        except OSError:
-            pass
 
     # --- findings -----------------------------------------------------------
 

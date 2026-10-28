@@ -21,7 +21,8 @@ import stat
 from pathlib import Path
 
 from ..models import Finding, Severity
-from ..utils import have, read_text, run as sh
+from ..utils import have, read_text
+from ..utils import run as sh
 from . import Context
 
 NAME = "rootkit"

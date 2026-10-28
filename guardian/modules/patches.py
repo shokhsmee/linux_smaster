@@ -9,13 +9,14 @@ default, following BOD 26-04 for internet-exposed hosts).
 from __future__ import annotations
 
 import re
-from datetime import UTC, date, datetime
+from datetime import date
 from pathlib import Path
 
 import httpx
 
 from ..models import Finding, Severity
-from ..utils import detect_distro, have, read_text, run as sh
+from ..utils import detect_distro, have, read_text
+from ..utils import run as sh
 from . import Context
 
 NAME = "patches"
@@ -221,7 +222,7 @@ def run(ctx: Context) -> list[Finding]:
             ))
 
     # Kernel: running vs newest installed (Debian/Ubuntu naming)
-    rc, uname, _ = sh(["uname", "-r"], timeout=5)
+    _, uname, _ = sh(["uname", "-r"], timeout=5)
     running = uname.strip()
     if running and have("dpkg-query"):
         imgs = sorted(n for n in installed_packages() if n.startswith("linux-image-") and n[12:13].isdigit())

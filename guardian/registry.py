@@ -73,10 +73,7 @@ def typosquat_candidates(name: str, ecosystem: str, max_distance: int = 2) -> li
     out = []
     for p in pool:
         d = edit_distance(n, normalize(p), max_distance)
-        if 0 < d <= max_distance:
-            out.append(p)
-        # common confusions: swapped separators or dropped scope, added suffix
-        elif n in (normalize(p) + "-js", normalize(p) + "js", normalize(p) + "-py", normalize(p) + "-python", "py" + normalize(p), "python-" + normalize(p)):
+        if 0 < d <= max_distance or n in (normalize(p) + "-js", normalize(p) + "js", normalize(p) + "-py", normalize(p) + "-python", "py" + normalize(p), "python-" + normalize(p)):
             out.append(p)
     return sorted(set(out))
 

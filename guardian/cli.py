@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import contextlib
 import time
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -158,7 +160,7 @@ def check_package(
     for name in names:
         try:
             r = _check(name, eco)
-        except Exception as exc:  # network errors should not crash the CLI
+        except Exception as exc:  # noqa: BLE001 - network errors should not crash the CLI
             console.print(f"[red]{name}: lookup failed ({exc})[/]")
             raise typer.Exit(code=1) from None
         reports.append(r)
@@ -213,10 +215,8 @@ def hub_serve(
     console.print(f"guardian hub listening on http://{bind}:{port}  (db: {path})")
     if bind not in ("127.0.0.1", "localhost", "::1"):
         console.print("[yellow]bound to a non-loopback address: use a TLS reverse proxy in front of it[/]")
-    try:
+    with contextlib.suppress(KeyboardInterrupt):
         hubmod.serve(bind, port, token, path)
-    except KeyboardInterrupt:
-        pass
 
 
 @app.command()
@@ -235,14 +235,14 @@ def triage(
 
     ctx = _ctx(config, internal)
     if report:
-        data = _json.loads(open(report, encoding="utf-8").read())
+        data = _json.loads(Path(report).read_text(encoding="utf-8"))
     else:
         results = run_modules(ctx)
         new = record_results(ctx, results)
         data = _json.loads(to_json(results, new))
     try:
         text = triagemod.triage(data, model or ctx.config.triage.model, ctx.config.triage.effort)
-    except Exception as exc:  # auth/network: report, do not trace
+    except Exception as exc:  # noqa: BLE001 - auth/network: report, do not trace
         console.print(f"[red]triage failed: {type(exc).__name__}: {exc}[/]")
         console.print("[dim]Set ANTHROPIC_API_KEY (or run `ant auth login`).[/]")
         raise typer.Exit(code=1) from None

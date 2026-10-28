@@ -77,7 +77,8 @@ def find_projects(roots: list[Path], depth: int = 4) -> tuple[list[Path], list[P
 
 def scan_worm_artifacts(roots: list[Path]) -> list[Finding]:
     findings: list[Finding] = []
-    targets = [Path("/tmp/CLEANER.LOG")]
+    # Worm artifact path we look for; never created or written.
+    targets = [Path("/tmp/CLEANER.LOG")]  # nosec B108
     for root in roots:
         for fn, label in WORM_ARTIFACTS.items():
             try:

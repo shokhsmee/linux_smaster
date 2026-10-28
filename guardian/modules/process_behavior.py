@@ -17,13 +17,15 @@ from pathlib import Path
 import psutil
 
 from ..models import Finding, Severity
-from ..utils import have, run as sh
+from ..utils import have
+from ..utils import run as sh
 from . import Context
 
 NAME = "process_behavior"
 CONFIG_KEY = "process"
 
-TMP_DIRS = ("/tmp/", "/dev/shm/", "/var/tmp/", "/run/user/", "/dev/mqueue/")
+# Prefixes matched against executable paths; nothing is created here.
+TMP_DIRS = ("/tmp/", "/dev/shm/", "/var/tmp/", "/run/user/", "/dev/mqueue/")  # nosec B108
 SYSTEM_BIN_DIRS = ("/usr/bin/", "/usr/sbin/", "/bin/", "/sbin/", "/usr/lib/", "/usr/libexec/", "/lib/", "/opt/", "/snap/", "/usr/local/")
 # Names malware borrows from the kernel/system to hide in `ps`.
 MIMIC_NAMES = {
@@ -79,7 +81,7 @@ def snapshot(cpu_interval: float = 1.0) -> list[Proc]:
                     link = os.readlink(f"/proc/{p.pid}/exe")
                     exe = link
                     deleted = link.endswith(" (deleted)")
-                    memfd = link.startswith("/memfd:") or link.startswith("memfd:")
+                    memfd = link.startswith(("/memfd:", "memfd:"))
                     exe = link.removesuffix(" (deleted)")
                 except OSError:
                     try:

@@ -23,7 +23,7 @@ def run_modules(ctx: Context, only: list[str] | None = None) -> list[ModuleResul
         try:
             findings: list[Finding] = mod.run(ctx)
             results.append(ModuleResult(module=name, findings=findings, duration_ms=int((time.monotonic() - t0) * 1000)))
-        except Exception:  # a broken module must not stop the others
+        except Exception:  # noqa: BLE001 - a broken module must not stop the others
             results.append(ModuleResult(module=name, error=traceback.format_exc(limit=3),
                                         duration_ms=int((time.monotonic() - t0) * 1000)))
     return results

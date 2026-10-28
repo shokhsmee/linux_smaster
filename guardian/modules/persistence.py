@@ -17,7 +17,8 @@ import stat
 from pathlib import Path
 
 from ..models import Finding, Severity
-from ..utils import have, read_text, run as sh
+from ..utils import have, read_text
+from ..utils import run as sh
 from . import Context
 
 NAME = "persistence"
@@ -183,7 +184,7 @@ def content_checks(ctx: Context) -> list[Finding]:
 
     # PAM / core libs vs package manager records.
     if have("debsums"):
-        rc, out, _ = sh(["debsums", "-c", "libpam-modules", "libpam-runtime", "libpam0g", "openssh-server", "sudo", "libc6"], timeout=120)
+        _, out, _ = sh(["debsums", "-c", "libpam-modules", "libpam-runtime", "libpam0g", "openssh-server", "sudo", "libc6"], timeout=120)
         for line in out.splitlines():
             line = line.strip()
             if line:
@@ -192,9 +193,9 @@ def content_checks(ctx: Context) -> list[Finding]:
                                         fix="A modified PAM/SSH/sudo/libc file is a backdoor until proven otherwise (e.g. Plague PAM). Reinstall the package and investigate.",
                                         evidence={"path": line}))
     elif have("rpm"):
-        rc, out, _ = sh(["rpm", "-V", "pam", "openssh-server", "sudo", "glibc"], timeout=120)
+        _, out, _ = sh(["rpm", "-V", "pam", "openssh-server", "sudo", "glibc"], timeout=120)
         for line in out.splitlines():
-            if line and line[0] in "S5" or ".5" in line[:9]:
+            if (line and line[0] in "S5") or ".5" in line[:9]:
                 path = line.split()[-1]
                 findings.append(Finding(module=NAME, check="package-file-modified", severity=Severity.CRITICAL,
                                         title=f"Package-owned file modified: {path}",
@@ -202,7 +203,8 @@ def content_checks(ctx: Context) -> list[Finding]:
                                         evidence={"path": path, "flags": line[:9]}))
 
     # Writable directories hiding NSS configs (preload/NSS hijack technique)
-    for d in ("/tmp", "/dev/shm", "/var/tmp"):
+    # Directories scanned for planted files; never written.
+    for d in ("/tmp", "/dev/shm", "/var/tmp"):  # nosec B108
         dp = Path(d)
         if not dp.is_dir():
             continue

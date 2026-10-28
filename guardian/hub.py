@@ -63,7 +63,7 @@ class HubDB:
     def hosts(self) -> list[dict]:
         with self.lock:
             rows = self.conn.execute("SELECT host, updated, score, critical, high, medium, low FROM hosts ORDER BY score ASC, host").fetchall()
-        return [dict(zip(("host", "updated", "score", "critical", "high", "medium", "low"), r)) for r in rows]
+        return [dict(zip(("host", "updated", "score", "critical", "high", "medium", "low"), r, strict=True)) for r in rows]
 
     def report(self, host: str) -> dict | None:
         with self.lock:
@@ -130,7 +130,7 @@ def make_handler(db: HubDB, token: str):
             auth = self.headers.get("Authorization", "")
             return auth.startswith("Bearer ") and hmac.compare_digest(auth[7:].strip(), token)
 
-        def do_GET(self) -> None:  # noqa: N802
+        def do_GET(self) -> None:
             if self.path == "/":
                 return self._send(200, render_index(db.hosts()).encode())
             if self.path == "/api/hosts":
@@ -142,7 +142,7 @@ def make_handler(db: HubDB, token: str):
                 return self._send(200, render_host(rep).encode()) if rep else self._send(404, b"not found", "text/plain")
             self._send(404, b"not found", "text/plain")
 
-        def do_POST(self) -> None:  # noqa: N802
+        def do_POST(self) -> None:
             if self.path != "/api/report":
                 return self._send(404, b"not found", "text/plain")
             if not self._authed():
@@ -152,8 +152,9 @@ def make_handler(db: HubDB, token: str):
                 return self._send(HTTPStatus.REQUEST_ENTITY_TOO_LARGE, b"bad length", "text/plain")
             try:
                 report = json.loads(self.rfile.read(length))
-                assert isinstance(report, dict) and "modules" in report
-            except (ValueError, AssertionError):
+            except ValueError:
+                report = None
+            if not isinstance(report, dict) or "modules" not in report:
                 return self._send(400, b'{"error":"bad report"}', "application/json")
             db.upsert(report)
             self._send(200, b'{"ok":true}', "application/json")

@@ -1,6 +1,5 @@
-from guardian.models import Finding, Severity
+from guardian.models import Finding, ModuleResult, Severity
 from guardian.report import score
-from guardian.models import ModuleResult
 
 
 def f(title="x", sev=Severity.HIGH, module="m", check="c"):

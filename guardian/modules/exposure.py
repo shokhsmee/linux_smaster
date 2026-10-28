@@ -16,7 +16,8 @@ import httpx
 import psutil
 
 from ..models import Finding, Severity
-from ..utils import have, is_private_ip, run as sh
+from ..utils import have, is_private_ip
+from ..utils import run as sh
 from . import Context
 
 NAME = "exposure"
@@ -165,7 +166,8 @@ def listeners() -> list[Listener]:
 
 
 def is_public_bind(ip: str) -> bool:
-    if ip in ("0.0.0.0", "::", ""):
+    # Detection string compared against a socket table; nothing is bound here.
+    if ip in ("0.0.0.0", "::", ""):  # nosec B104
         return True
     return not is_private_ip(ip)
 

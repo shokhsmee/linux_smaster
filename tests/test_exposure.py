@@ -19,7 +19,7 @@ def test_ollama_without_auth_is_critical(ctx, monkeypatch):
         exposure.Listener("tcp", "0.0.0.0", 4567, 7, "mystery"),
     ])
     monkeypatch.setattr(exposure, "probe", lambda port, profile, timeout: True if port == 11434 else None)
-    monkeypatch.setattr(exposure, "docker_published_ports", lambda: [])
+    monkeypatch.setattr(exposure, "docker_published_ports", list)
     findings = exposure.run(ctx)
     by_port = {f.evidence["port"]: f for f in findings}
     assert by_port[11434].severity == Severity.CRITICAL
@@ -31,13 +31,13 @@ def test_ollama_without_auth_is_critical(ctx, monkeypatch):
 def test_auth_required_downgrades(ctx, monkeypatch):
     monkeypatch.setattr(exposure, "listeners", lambda: [exposure.Listener("tcp", "::", 8888, 5, "jupyter")])
     monkeypatch.setattr(exposure, "probe", lambda *a: False)
-    monkeypatch.setattr(exposure, "docker_published_ports", lambda: [])
+    monkeypatch.setattr(exposure, "docker_published_ports", list)
     (f,) = exposure.run(ctx)
     assert f.severity == Severity.MEDIUM and f.evidence["auth"] == "auth-required"
 
 
 def test_docker_ufw_bypass(ctx, monkeypatch):
-    monkeypatch.setattr(exposure, "listeners", lambda: [])
+    monkeypatch.setattr(exposure, "listeners", list)
     monkeypatch.setattr(exposure, "docker_published_ports", lambda: [("web", "0.0.0.0", 8080), ("db", "127.0.0.1", 5432)])
     monkeypatch.setattr(exposure, "ufw_active", lambda: True)
     (f,) = exposure.run(ctx)

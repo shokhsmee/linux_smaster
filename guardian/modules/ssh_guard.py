@@ -14,7 +14,8 @@ from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 
 from ..models import Finding, Severity
-from ..utils import have, is_private_ip, read_text, run as sh
+from ..utils import have, is_private_ip, read_text
+from ..utils import run as sh
 from . import Context
 
 NAME = "ssh_guard"
@@ -145,7 +146,7 @@ def analyze_auth(lines: list[str], window: timedelta, now: datetime | None = Non
 def service_active(name: str) -> bool | None:
     if not have("systemctl"):
         return None
-    rc, out, _ = sh(["systemctl", "is-active", name], timeout=5)
+    _, out, _ = sh(["systemctl", "is-active", name], timeout=5)
     return out.strip() == "active"
 
 

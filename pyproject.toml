@@ -20,7 +20,10 @@ guardian = "guardian.cli:app"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.9.4",
+    "hypothesis>=6.170.12",
     "pytest>=9.2.0",
+    "ruff>=0.17.3",
 ]
 
 [build-system]
@@ -32,3 +35,17 @@ packages = ["guardian"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 200
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "PIE", "RUF", "BLE"]
+# E501: long regex/table lines are deliberate; E741: short loop names in parsers.
+ignore = ["E501", "E741"]
+
+[tool.bandit]
+exclude_dirs = ["tests", ".venv"]
+# B404/B603: guardian.utils.run executes fixed argv lists without a shell; that is the intended safe form.
+skips = ["B404", "B603"]
