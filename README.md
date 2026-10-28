@@ -99,8 +99,8 @@ Guardian is a security tool, so it is held to the standards it checks for:
   module would flag it if it were.
 - **Pinned, audited supply chain.** `uv.lock` is installed with `--locked`,
   every GitHub Action is pinned to a commit SHA, workflows default to
-  `permissions: contents: read`, and Dependabot proposes weekly updates for
-  Python packages and Actions.
+  `permissions: contents: read`, and Renovate proposes weekly, grouped updates
+  for Python packages and Actions (7-day minimum release age, digests pinned).
 - **Continuous SAST and fuzzing.** Each push runs `ruff`, `bandit` and the test
   suite, which includes [hypothesis](https://hypothesis.readthedocs.io/)
   property tests (`tests/test_fuzz.py`) asserting that the auth-log, secret,

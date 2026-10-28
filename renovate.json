@@ -1,0 +1,23 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", ":pinDigests"],
+  "timezone": "Europe/Tallinn",
+  "schedule": ["before 6am on monday"],
+  "minimumReleaseAge": "7 days",
+  "dependencyDashboard": true,
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 6am on monday"]
+  },
+  "packageRules": [
+    {
+      "matchManagers": ["pep621"],
+      "groupName": "python dependencies"
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "github actions",
+      "pinDigests": true
+    }
+  ]
+}

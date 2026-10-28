@@ -39,7 +39,8 @@ are released as a new tag, never as a replaced tag.
   environment or `/etc/guardian/env` at runtime; the `secrets` module and the
   CI lint would flag anything committed.
 - Dependencies are locked (`uv.lock`) and installed with `uv sync --locked`;
-  Dependabot proposes updates weekly for Python packages and GitHub Actions.
+  Renovate proposes grouped updates weekly for Python packages and GitHub
+  Actions, after a 7-day minimum release age.
 - Every GitHub Action is pinned to a full commit SHA and the workflows run with
   `permissions: contents: read` by default.
 - Each push runs `ruff`, `bandit` (SAST) and the test suite, which includes
