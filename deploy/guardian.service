@@ -1,0 +1,33 @@
+[Unit]
+Description=Guardian Linux security manager (watch mode)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Guardian needs root to read auth logs, /proc/*/environ of other users, sshd -T, etc.
+User=root
+WorkingDirectory=/opt/guardian
+ExecStart=/opt/guardian/.venv/bin/guardian watch --interval 15
+Restart=on-failure
+RestartSec=30
+EnvironmentFile=-/etc/guardian/env
+
+# Hardening: Guardian only needs to read the system and write its own state dir.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/guardian
+ProtectHome=read-only
+PrivateTmp=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_NET_ADMIN CAP_SYS_PTRACE
+AmbientCapabilities=CAP_DAC_READ_SEARCH
+
+[Install]
+WantedBy=multi-user.target

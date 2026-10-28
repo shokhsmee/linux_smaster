@@ -1,0 +1,39 @@
+# Copy to /etc/guardian/config.toml  (chmod 600). Every key is optional.
+
+# state_dir = "/var/lib/guardian"
+
+[exposure]
+enabled = true
+probe_http = true        # confirm AI/dev services answer without auth (local requests only)
+probe_timeout = 2.0
+
+[ssh]
+enabled = true
+auth_logs = ["/var/log/auth.log", "/var/log/secure"]
+window_minutes = 60
+brute_force_threshold = 50
+
+[patches]
+enabled = true
+kev_cache_hours = 12
+sla_days = 3             # BOD 26-04 style window for internet-exposed hosts
+
+[secrets]
+enabled = true
+paths = ["/home", "/root", "/srv", "/opt", "/var/www", "/etc"]
+max_file_kb = 512
+scan_proc_environ = true
+
+[persistence]
+enabled = true
+extra_paths = []         # extra directories to baseline, e.g. ["/opt/myapp/bin"]
+
+[alerts]
+min_severity = "medium"  # info | low | medium | high | critical
+# Prefer the environment (/etc/guardian/env) for tokens:
+#   GUARDIAN_TELEGRAM_TOKEN=...   GUARDIAN_TELEGRAM_CHAT=...
+#   GUARDIAN_SLACK_WEBHOOK=...    GUARDIAN_WEBHOOK=...
+telegram_bot_token = ""
+telegram_chat_id = ""
+slack_webhook = ""
+generic_webhook = ""
