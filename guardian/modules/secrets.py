@@ -83,10 +83,8 @@ def _looks_like_placeholder(val: str) -> bool:
     return any(w in v for w in ("changeme", "example", "your_", "xxxx", "placeholder", "<", "${", "dummy", "test")) or v in ("password", "secret")
 
 
-def _should_scan(path: Path, max_bytes: int, exclude: list[str]) -> bool:
+def _should_scan(path: Path, max_bytes: int) -> bool:
     if path.suffix.lower() in SKIP_EXT:
-        return False
-    if any(part in exclude for part in path.parts):
         return False
     try:
         st = path.lstat()
@@ -123,10 +121,14 @@ def candidate_files(roots: list[str], max_bytes: int, exclude: list[str], limit:
                             except OSError:
                                 pass
         for dirpath, dirnames, filenames in os.walk(r, followlinks=False):
-            dirnames[:] = [d for d in dirnames if d not in exclude and not (d.startswith(".") and d in ("snapshots",))]
+            here = Path(dirpath)
+            # Never prune the home directories themselves: a user called
+            # "test", "build" or "sample" still gets their files scanned.
+            if not (r.name == "home" and here == r):
+                dirnames[:] = [d for d in dirnames if d not in exclude]
             for fn in filenames:
-                p = Path(dirpath) / fn
-                if _should_scan(p, max_bytes, exclude):
+                p = here / fn
+                if _should_scan(p, max_bytes):
                     out.append(p)
             if len(out) >= limit:
                 return list(dict.fromkeys(out))

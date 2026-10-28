@@ -42,3 +42,20 @@ def test_file_scan_and_world_readable(ctx, tmp_path):
     fnd = next(f for f in findings if f.evidence["path"] == str(env))
     assert fnd.severity == Severity.CRITICAL and fnd.evidence["world_readable"] is True
     assert "Z" * 10 not in fnd.title + fnd.detail  # masked
+
+
+def test_home_dir_named_like_excluded_dir_is_scanned(ctx, tmp_path):
+    # /home/test and /home/build are real users on CI/build boxes; the exclude
+    # list ("test", "build", ...) must only prune directories inside a home.
+    home = tmp_path / "home"
+    for user in ("test", "build"):
+        app = home / user / "app"
+        app.mkdir(parents=True)
+        (app / "docker-compose.yml").write_text("OPENAI_API_KEY=sk-proj-" + "Z" * 48 + "\n")
+        inner = home / user / "test"
+        inner.mkdir()
+        (inner / ".env").write_text("OPENAI_API_KEY=sk-proj-" + "Q" * 48 + "\n")
+    ctx.config.secrets.paths = [str(home)]
+    ctx.config.secrets.scan_proc_environ = False
+    paths = {f.evidence["path"] for f in secrets.run(ctx)}
+    assert paths == {str(home / "test" / "app" / "docker-compose.yml"), str(home / "build" / "app" / "docker-compose.yml")}
