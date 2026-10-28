@@ -103,6 +103,27 @@ def baseline(config: ConfigOpt = None) -> None:
     console.print(f"baseline recorded for {n} files")
 
 
+@app.command("test-alert")
+def test_alert(config: ConfigOpt = None) -> None:
+    """Send a test message through every configured alert channel."""
+    import socket
+
+    from .models import Finding, Severity
+
+    cfg = load_config(config).alerts
+    probe = Finding(module="guardian", check="test-alert", severity=Severity.CRITICAL,
+                    title=f"Test alert from Guardian on {socket.gethostname()}: alerting works",
+                    fix="No action needed.")
+    sent = alerting.send(cfg, [probe])
+    configured = [n for n, v in (("telegram", cfg.telegram_bot_token and cfg.telegram_chat_id),
+                                 ("slack", cfg.slack_webhook), ("webhook", cfg.generic_webhook)) if v]
+    if not configured:
+        console.print("[yellow]no alert channel configured (GUARDIAN_TELEGRAM_TOKEN/CHAT, GUARDIAN_SLACK_WEBHOOK or GUARDIAN_WEBHOOK)[/]")
+        raise typer.Exit(code=1)
+    console.print(f"configured: {', '.join(configured)}; delivered: {', '.join(sent) or 'NONE'}")
+    raise typer.Exit(code=0 if sent else 1)
+
+
 @app.command()
 def watch(
     config: ConfigOpt = None,
