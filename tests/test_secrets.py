@@ -23,6 +23,9 @@ def test_placeholders_ignored():
     assert secrets.scan_text("DB_PASSWORD=changeme123\nSECRET=${SECRET}\nTOKEN=your_token_here") == []
     hits = secrets.scan_text("DB_PASSWORD=Sup3rS3cretValue!!")
     assert hits and hits[0][0] == "Generic password assignment" and hits[0][1] == Severity.LOW
+    # A value that a specific pattern recognises is not also reported as a generic assignment.
+    hits = secrets.scan_text("HF_TOKEN=hf_" + "b" * 34)
+    assert [k for k, _, _ in hits] == ["Hugging Face token"]
 
 
 def test_file_scan_and_world_readable(ctx, tmp_path):

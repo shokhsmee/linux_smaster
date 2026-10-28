@@ -104,8 +104,11 @@ def scan_worm_artifacts(roots: list[Path]) -> list[Finding]:
     return findings
 
 
-def scan_node_modules(project: Path, budget: list[int]) -> list[Finding]:
+def scan_node_modules(project: Path, budget: list[int], seen: set[str] | None = None) -> list[Finding]:
+    """`seen` holds worm-artifact paths scan_worm_artifacts already reported, so a
+    loader file inside a package is not flagged twice."""
     findings: list[Finding] = []
+    seen = set() if seen is None else seen
     nm = project / "node_modules"
     pkg_jsons: list[Path] = []
     try:
@@ -134,7 +137,8 @@ def scan_node_modules(project: Path, budget: list[int]) -> list[Finding]:
                                         fix="Install hooks run as you on every `npm install`. Remove the package; set `npm config set ignore-scripts true`.",
                                         evidence={"package": name, "hook": hook, "cmd": cmd[:200], "path": str(pj)}))
         for fn in ("setup_bun.js", "bun_environment.js"):
-            if (pj.parent / fn).exists():
+            if (pj.parent / fn).exists() and str(pj.parent / fn) not in seen:
+                seen.add(str(pj.parent / fn))
                 findings.append(Finding(module=NAME, check="worm-artifact", severity=Severity.CRITICAL,
                                         title=f"Shai-Hulud 2.0 file {fn} inside npm package {name}",
                                         fix="Remove the package and rotate all credentials on the host.", evidence={"package": name, "path": str(pj.parent / fn)}))
@@ -197,8 +201,9 @@ def run(ctx: Context) -> list[Finding]:
     findings = scan_worm_artifacts(roots)
     node, py = find_projects(roots, cfg.project_depth)
     budget = [MAX_PACKAGES]
+    seen = {str(f.evidence.get("path")) for f in findings if f.check == "worm-artifact"}
     for p in node:
-        findings += scan_node_modules(p, budget)
+        findings += scan_node_modules(p, budget, seen)
     for sp in py:
         findings += scan_site_packages(sp, budget)
     findings += hygiene(node)

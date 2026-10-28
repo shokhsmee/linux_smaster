@@ -1,7 +1,10 @@
 import json
+import os
+import shutil
 import threading
 from datetime import UTC, datetime, timedelta
 from http.server import ThreadingHTTPServer
+from pathlib import Path
 
 import httpx
 
@@ -76,6 +79,10 @@ def test_package_provenance_scans_projects(ctx, tmp_path, monkeypatch):
     assert not any(p == "requests" for _, p in checks)
     assert any(c == "rc-wiper-line" for c, _ in checks)
     assert any(c == "no-lockfile" for c, _ in checks)
+    # The loader file is found both by the home-directory sweep and by the
+    # node_modules scan; it must be reported once, with its worm family.
+    bun = [f for f in findings if f.check == "worm-artifact" and f.evidence["path"].endswith("setup_bun.js")]
+    assert len(bun) == 1 and bun[0].evidence["family"] == "Shai-Hulud 2.0 loader"
 
 
 # --- containers -----------------------------------------------------------------------
@@ -101,6 +108,27 @@ def test_container_analysis():
     hist = "/bin/sh -c #(nop) ARG AWS_SECRET_ACCESS_KEY=" + "C" * 40 + "\n/bin/sh -c apt-get update"
     f2 = containers.analyze_image(img, hist)
     assert {f.check for f in f2} == {"secret-in-image-env", "secret-in-image-history"}
+
+
+def test_containers_run_through_stub_docker_cli(ctx, tmp_path, monkeypatch):
+    """Drive run() end to end with the fake `docker` the Linux harness plants on PATH."""
+    stub = Path(__file__).parent / "linux" / "fake_docker.sh"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    shutil.copy(stub, bin_dir / "docker")
+    (bin_dir / "docker").chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+
+    findings = containers.run(ctx)
+    by_check = {(f.check, f.evidence.get("container") or f.evidence.get("image")): f for f in findings}
+    assert by_check[("secret-in-container-env", "api")].severity == Severity.CRITICAL
+    assert by_check[("sensitive-host-mount", "api")].severity == Severity.CRITICAL
+    assert by_check[("privileged-container", "api")].severity == Severity.HIGH
+    assert by_check[("secret-in-image-env", "myapp:1.2")].evidence["kind"] == "Hugging Face token"
+    assert by_check[("secret-in-image-history", "myapp:1.2")].evidence["kind"] == "AWS secret key"
+    # The docker.sock bind appears in both Binds and Mounts; one finding, not two.
+    assert sum(1 for f in findings if f.check == "sensitive-host-mount") == 1
+    assert not any(f.evidence.get("bind") == "/data:/data" for f in findings)
 
 
 # --- hub --------------------------------------------------------------------------------

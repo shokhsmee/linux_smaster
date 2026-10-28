@@ -73,9 +73,14 @@ guardian watch            # loop every N minutes and alert on new findings
 uv + Python 3.15, runs the unit tests, plants real conditions (an
 unauthenticated Ollama on 0.0.0.0:11434, a leaked key in `.env` and in a
 process environment, a `curl | sh` cron job, a non-empty `ld.so.preload`,
-sshd with password auth, a brute-force burst in `auth.log`) and asserts that
-two consecutive `guardian audit --json` runs report each of them with the
-expected severity, with the second run diffing the persistence baseline.
+sshd with password auth, a brute-force burst in `auth.log`, a Node project
+with a typosquat and a `curl | sh` postinstall hook, a typosquatted PyPI
+dist-info, a wiper line in `.bashrc`) and asserts that two consecutive
+`guardian audit --json` runs report each of them with the expected severity,
+with the second run diffing the persistence baseline. Docker-in-Docker is
+impractical there, so a stub `docker` CLI on PATH answers `ps`, `inspect`,
+`images` and `history` with a privileged container that mounts the Docker
+socket and carries an OpenAI key in its environment.
 
 ```bash
 tests/linux/run.sh            # build + run; audit JSON lands in .testout/

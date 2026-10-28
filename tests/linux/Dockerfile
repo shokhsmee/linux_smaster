@@ -13,8 +13,9 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 # openssh-server + cron give the ssh_guard and persistence modules something
 # real to inspect. apt lists are kept so the patches module can simulate upgrades.
+# tzdata: the hypothesis timezone strategy in tests/test_fuzz.py needs zoneinfo.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        ca-certificates curl openssh-server cron \
+        ca-certificates curl openssh-server cron tzdata \
     && mkdir -p /run/sshd
 
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/

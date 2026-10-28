@@ -74,8 +74,11 @@ def scan_text(text: str) -> list[tuple[str, Severity, str]]:
                 continue
             hits.append((name, sev, mask(val)))
             if len(hits) > 50:
-                return hits
-    return hits
+                break
+    # HF_TOKEN=hf_... matches both the Hugging Face pattern and the generic
+    # assignment pattern; keep only the specific, higher-severity hit.
+    specific = {masked for name, _, masked in hits if name != "Generic password assignment"}
+    return [h for h in hits if h[0] != "Generic password assignment" or h[2] not in specific]
 
 
 def _looks_like_placeholder(val: str) -> bool:

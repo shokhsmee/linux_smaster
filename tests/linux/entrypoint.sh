@@ -12,7 +12,7 @@ uv run --frozen pytest -q || status=1
 
 echo "### guardian modules"
 uv run --frozen guardian modules | tee "$OUT/modules.txt"
-n=$(grep -c . "$OUT/modules.txt"); [ "$n" -eq 10 ] && echo "ok  10 modules listed" || { echo "FAIL expected 10 modules, got $n"; status=1; }
+n=$(grep -c '^[a-z_]\+ ' "$OUT/modules.txt"); [ "$n" -eq 12 ] && echo "ok  12 modules listed" || { echo "FAIL expected 12 modules, got $n"; status=1; }
 
 echo "### plant"
 bash "$HERE/plant.sh" || status=1

@@ -31,6 +31,27 @@ def expect(fs: list[dict], module: str, check: str, severity: str, **evidence) -
     fail(f"missing finding {module}/{check} [{severity}] {evidence}")
 
 
+def matching(fs: list[dict], module: str, check: str, **evidence) -> list[dict]:
+    return [f for f in fs if f["module"] == module and f["check"] == check
+            and all(f["evidence"].get(k) == v for k, v in evidence.items())]
+
+
+def absent(fs: list[dict], module: str, check: str, **evidence) -> None:
+    hits = matching(fs, module, check, **evidence)
+    if hits:
+        fail(f"unexpected finding {module}/{check} {evidence}: {hits[0]['title']}")
+    else:
+        print(f"  ok  no {module}/{check} {evidence}")
+
+
+def once(fs: list[dict], module: str, check: str, **evidence) -> None:
+    n = len(matching(fs, module, check, **evidence))
+    if n != 1:
+        fail(f"{module}/{check} {evidence} reported {n} times, expected once")
+    else:
+        print(f"  ok  {module}/{check} {evidence} reported once")
+
+
 def fail(msg: str) -> None:
     print("  FAIL", msg)
     FAILURES.append(msg)
@@ -53,6 +74,25 @@ def common_checks(fs: list[dict]) -> None:
     expect(fs, "process_behavior", "hidden-dir-exe", "medium", exe="/tmp/.x/kswapd0")
     expect(fs, "rootkit", "ld-preload-env", "high", path="/etc/environment")
     expect(fs, "agent_guard", "config-suspicious-command", "critical", path="/root/.mcp.json")
+    # Phase 3: package provenance
+    expect(fs, "package_provenance", "possible-typosquat", "medium", package="lodahs")
+    expect(fs, "package_provenance", "possible-typosquat", "medium", package="reqeusts")
+    expect(fs, "package_provenance", "suspicious-install-hook", "high", package="evil", hook="postinstall")
+    expect(fs, "package_provenance", "worm-artifact", "critical", path="/home/test/app/node_modules/evil/setup_bun.js")
+    expect(fs, "package_provenance", "rc-wiper-line", "critical", path="/home/test/.bashrc")
+    expect(fs, "package_provenance", "no-lockfile", "low", path="/home/test/app")
+    absent(fs, "package_provenance", "possible-typosquat", package="requests")
+    absent(fs, "package_provenance", "possible-typosquat", package="app")
+    # Phase 3: containers (through the stub docker CLI planted on PATH)
+    expect(fs, "containers", "secret-in-container-env", "critical", container="api", kind="OpenAI key")
+    expect(fs, "containers", "sensitive-host-mount", "critical", container="api", bind="/var/run/docker.sock:/var/run/docker.sock")
+    expect(fs, "containers", "privileged-container", "high", container="api")
+    expect(fs, "containers", "unpinned-image", "low", container="api", image="myapp:latest")
+    expect(fs, "containers", "secret-in-image-env", "high", image="myapp:1.2", kind="Hugging Face token")
+    expect(fs, "containers", "secret-in-image-history", "critical", image="myapp:1.2", kind="AWS secret key")
+    absent(fs, "containers", "sensitive-host-mount", bind="/data:/data")
+    once(fs, "package_provenance", "worm-artifact", path="/home/test/app/node_modules/evil/setup_bun.js")
+    once(fs, "containers", "sensitive-host-mount", container="api")
 
 
 def main() -> int:

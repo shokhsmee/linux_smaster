@@ -1,4 +1,6 @@
-"""Container configuration & image secrets (Phase 3 extension of M8).
+"""M12 Container configuration & image secrets.
+
+Phase 3 extension of M8 (secrets) to Docker/Podman.
 
 Uses the Docker/Podman CLI to inspect running containers and local images for
 secrets baked into ENV or build history, dangerous host access (privileged,
