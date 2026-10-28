@@ -48,6 +48,11 @@ def common_checks(fs: list[dict]) -> None:
     expect(fs, "persistence", "ld-preload", "critical")
     expect(fs, "ssh_guard", "sshd-config", "high", option="passwordauthentication", value="yes")
     expect(fs, "ssh_guard", "brute-force", "medium", ip="45.33.32.156")
+    expect(fs, "process_behavior", "exec-from-tmp", "high", exe="/tmp/.x/kswapd0")
+    expect(fs, "process_behavior", "name-mimicry", "high", exe="/tmp/.x/kswapd0")
+    expect(fs, "process_behavior", "hidden-dir-exe", "medium", exe="/tmp/.x/kswapd0")
+    expect(fs, "rootkit", "ld-preload-env", "high", path="/etc/environment")
+    expect(fs, "agent_guard", "config-suspicious-command", "critical", path="/root/.mcp.json")
 
 
 def main() -> int:
@@ -61,15 +66,18 @@ def main() -> int:
             fail(f"module {m['module']} skipped: {m['skipped']}")
     fs = findings(report)
     common_checks(fs)
-    baseline = [f for f in fs if f["module"] == "persistence" and f["check"] == "baseline"]
+    baselines = {f["module"]: f for f in fs if f["check"] == "baseline"}
     if phase == "first":
-        if not baseline:
-            fail("first run should create the persistence baseline")
-        else:
-            print(f"  ok  persistence/baseline: {baseline[0]['title']}")
+        for mod in ("persistence", "agent_guard"):
+            if mod not in baselines:
+                fail(f"first run should create the {mod} baseline")
+            else:
+                print(f"  ok  {mod}/baseline: {baselines[mod]['title']}")
     else:
-        if baseline:
-            fail("second run re-created the persistence baseline instead of diffing it")
+        for mod in baselines:
+            fail(f"second run re-created the {mod} baseline instead of diffing it")
+        expect(fs, "agent_guard", "agent-config-new", "medium", path="/root/CLAUDE.md")
+        expect(fs, "agent_guard", "instruction-injection", "high", path="/root/CLAUDE.md")
         expect(fs, "persistence", "modified-file", "medium", path="/etc/cron.d/evil")
         expect(fs, "persistence", "new-file", "medium", path="/etc/cron.d/evil2")
         expect(fs, "persistence", "suspicious-command", "high", path="/etc/cron.d/evil2")
