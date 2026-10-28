@@ -98,7 +98,15 @@ def sudo_version() -> tuple[int, ...] | None:
     chroot CVE was backported (Debian/Ubuntu keep the old version number)."""
     if not have("sudo"):
         return None
-    _, out, _ = sh(["sudo", "--version"], timeout=5)
+    # Ask the package manager, not the setuid binary: under a hardened unit
+    # (NoNewPrivileges) `sudo --version` fails before printing anything.
+    out = ""
+    if have("dpkg-query"):
+        _, out, _ = sh(["dpkg-query", "-W", "-f", "Sudo version ${Version}", "sudo"], timeout=10)
+    elif have("rpm"):
+        _, out, _ = sh(["rpm", "-q", "--qf", "Sudo version %{VERSION}", "sudo"], timeout=10)
+    if "Sudo version" not in out:
+        _, out, _ = sh(["sudo", "--version"], timeout=5)
     m = re.search(r"Sudo version (\d+)\.(\d+)\.(\d+)(?:p(\d+))?", out)
     if not m:
         return None
