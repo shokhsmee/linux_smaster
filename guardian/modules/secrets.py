@@ -57,6 +57,12 @@ NAME_HINTS = re.compile(
 
 SKIP_EXT = {".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".gz", ".tar", ".bz2", ".xz", ".so", ".o",
             ".pyc", ".whl", ".jar", ".class", ".mp4", ".mp3", ".woff", ".woff2", ".ttf", ".db", ".sqlite"}
+# Templates and examples hold placeholders, not live secrets.
+SKIP_SUFFIXES = (".example", ".sample", ".dist", ".template", ".tpl", ".orig", ".bak~")
+# Private keys are *expected* here; report only if they are readable by others.
+EXPECTED_KEY_DIRS = ("/etc/letsencrypt/", "/etc/ssl/private/", "/.ssh/", "/etc/ssh/", "/var/lib/acme/", "/etc/pki/tls/private/")
+# Keys shipped inside third-party source trees (vendor test keys) are low value.
+SOURCE_TREE_HINTS = ("/addons/", "/site-packages/", "/node_modules/", "/vendor/", "/dist-packages/", "/.claude/skills/", "/demo/")
 
 
 def mask(value: str) -> str:
@@ -87,7 +93,7 @@ def _looks_like_placeholder(val: str) -> bool:
 
 
 def _should_scan(path: Path, max_bytes: int) -> bool:
-    if path.suffix.lower() in SKIP_EXT:
+    if path.suffix.lower() in SKIP_EXT or path.name.endswith(SKIP_SUFFIXES):
         return False
     try:
         st = path.lstat()
@@ -179,7 +185,16 @@ def run(ctx: Context) -> list[Finding]:
         if not hits:
             continue
         world = file_world_readable(f)
+        path_s = str(f)
+        in_source_tree = any(h in path_s for h in SOURCE_TREE_HINTS)
         for name, sev, masked in hits[:5]:
+            if name == "Private key block":
+                if any(d in path_s for d in EXPECTED_KEY_DIRS) and not world:
+                    continue  # TLS/SSH keys in their proper, root-only locations
+                if in_source_tree:
+                    sev = Severity.LOW  # vendor/test key bundled with source
+            elif in_source_tree and sev.rank <= Severity.LOW.rank:
+                continue  # generic "password=" in skills/addons/site-packages is noise
             if world and Severity.LOW.rank < sev.rank < Severity.HIGH.rank:
                 sev = Severity.HIGH  # a real key readable by every local user
             findings.append(Finding(

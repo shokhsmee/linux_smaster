@@ -186,7 +186,7 @@ def run(ctx: Context) -> list[Finding]:
     for ip, n in failures.most_common(10):
         if n >= cfg.brute_force_threshold:
             findings.append(Finding(
-                module=NAME, check="brute-force", severity=Severity.MEDIUM,
+                module=NAME, check="brute-force", severity=Severity.MEDIUM, key=f"ip:{ip}",
                 title=f"{n} failed SSH logins from {ip} in the last {cfg.window_minutes} min",
                 detail=f"Most tried invalid users: {', '.join(u for u, _ in users.most_common(5))}",
                 fix="Ban with fail2ban/CrowdSec; disable password auth; consider allow-listing admin IPs.",
@@ -195,7 +195,7 @@ def run(ctx: Context) -> list[Finding]:
     total_fail = sum(failures.values())
     if total_fail >= cfg.brute_force_threshold * 4:
         findings.append(Finding(
-            module=NAME, check="brute-force", severity=Severity.MEDIUM,
+            module=NAME, check="brute-force", severity=Severity.MEDIUM, key="distributed",
             title=f"{total_fail} failed SSH logins from {len(failures)} addresses in the last {cfg.window_minutes} min",
             fix="Distributed brute force: use key-only auth and CrowdSec (shared blocklists) rather than per-IP bans.",
             evidence={"total": total_fail, "sources": len(failures)},

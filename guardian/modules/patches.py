@@ -204,6 +204,32 @@ def run(ctx: Context) -> list[Finding]:
         pkgs = installed_packages()
         hits = match_kev(kev, pkgs)
         seen_cves: set[str] = set()
+        # Kernel entries are grouped into one finding against the *running*
+        # kernel: distros backport fixes, so per-CVE package matching only tells
+        # you the kernel is a KEV target, not that it is vulnerable.
+        _, uname_out, _ = sh(["uname", "-r"], timeout=5)
+        running_kernel = uname_out.strip()
+        kernel_hits = [(v, p, ver) for v, p, ver in hits if p.startswith(("linux-image", "kernel", "linux"))]
+        hits = [h for h in hits if h not in kernel_hits]
+        recent_kernel = []
+        for v, _, _ in kernel_hits:
+            if v["cve"] in seen_cves:
+                continue
+            seen_cves.add(v["cve"])
+            try:
+                if int(v["cve"].split("-")[1]) >= date.today().year - 2:
+                    recent_kernel.append(v)
+            except (IndexError, ValueError):
+                pass
+        if recent_kernel:
+            cves = ", ".join(v["cve"] for v in recent_kernel[:8])
+            names = "; ".join(f"{v['cve']}: {v['name'][:60]}" for v in recent_kernel[:5])
+            findings.append(Finding(
+                module=NAME, check="kev-kernel", severity=Severity.HIGH, key=f"kernel:{running_kernel}",
+                title=f"{len(recent_kernel)} actively exploited kernel CVE(s) in CISA KEV target your kernel line ({running_kernel}): {cves}",
+                detail=names, fix="Check the distro advisory for each CVE (Ubuntu: `ubuntu-security-status` / USN, Debian: security-tracker, RHEL: `yum updateinfo`); apply the kernel update and reboot (or live-patch). Reduce exposure with the kernel_hardening module's module blacklists.",
+                evidence={"running": running_kernel, "cves": cves},
+            ))
         for v, pkg, ver in hits:
             if v["cve"] in seen_cves:
                 continue

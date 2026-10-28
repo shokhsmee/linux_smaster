@@ -8,6 +8,7 @@ each one. It never changes anything itself.
 
 from __future__ import annotations
 
+import gzip
 import re
 from pathlib import Path
 
@@ -93,12 +94,27 @@ def module_available(name: str) -> bool:
 
 
 def sudo_version() -> tuple[int, ...] | None:
+    """Upstream sudo version, or None when the distro changelog shows the
+    chroot CVE was backported (Debian/Ubuntu keep the old version number)."""
     if not have("sudo"):
         return None
     _, out, _ = sh(["sudo", "--version"], timeout=5)
     m = re.search(r"Sudo version (\d+)\.(\d+)\.(\d+)(?:p(\d+))?", out)
     if not m:
         return None
+    for changelog in ("/usr/share/doc/sudo/changelog.Debian.gz", "/usr/share/doc/sudo/changelog.gz"):
+        p = Path(changelog)
+        if p.is_file():
+            try:
+                with gzip.open(p, "rt", errors="replace") as fh:
+                    if "CVE-2025-32463" in fh.read(400_000):
+                        return None
+            except OSError:
+                pass
+    if have("rpm"):
+        _, chg, _ = sh(["rpm", "-q", "--changelog", "sudo"], timeout=15)
+        if "CVE-2025-32463" in chg:
+            return None
     return tuple(int(x) if x else 0 for x in m.groups())
 
 

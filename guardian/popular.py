@@ -40,6 +40,14 @@ POPULAR_PYPI = {
     "pyserial", "paho-mqtt", "schedule", "apscheduler", "loguru", "structlog", "sentry-sdk", "twilio", "stripe",
 }
 
+# Real packages whose names sit one edit from a popular one (successors, forks, companions).
+KNOWN_LEGIT_NEAR_NAMES = {
+    "npm": {"react-dom", "lodash-es", "vite-node", "zod-to-json-schema", "esbuild-wasm"},
+    "pypi": {"httpx2", "psycopg2", "psycopg3", "pydantic-core", "pydantic-extra-types", "pytest-cov", "numpy-stl", "typer-slim",
+             "rich-click", "redis-py", "boto3-stubs", "types-requests", "requests-toolbelt", "requests-oauthlib", "flask-cors",
+             "django-cors-headers", "pillow-heif", "lxml-stubs", "pyyaml-include", "click-plugins", "tqdm-stubs", "aiohttp-cors"},
+}
+
 # Names that were hallucinated by LLMs and later registered on a registry (documented cases).
 KNOWN_SLOPSQUATS = {
     "npm": set(),

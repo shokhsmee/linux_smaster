@@ -10,6 +10,7 @@ publishing ports that bypass a host firewall (UFW).
 from __future__ import annotations
 
 import re
+import socket
 from dataclasses import dataclass, field
 
 import httpx
@@ -121,6 +122,23 @@ PROFILES: dict[int, ServiceProfile] = {
         "Change default guest credentials; firewall.", None, None, ("infra",)),
     9000: ServiceProfile("Portainer / MinIO / PHP-FPM", Severity.MEDIUM,
         "Confirm auth and bind to localhost.", None, None, ("infra",)),
+    # --- proxies: an open relay gets your IP used for IRC/mining/abuse traffic ---
+    1080: ServiceProfile("SOCKS proxy (microsocks/dante/ssh -D)", Severity.HIGH,
+        "Require auth (microsocks -u USER -P PASS), bind to 127.0.0.1 or a VPN interface, and firewall port 1080. Open SOCKS proxies are found and abused within hours.",
+        "socks5", None, ("proxy",)),
+    3128: ServiceProfile("HTTP proxy (squid/tinyproxy)", Severity.HIGH,
+        "Restrict with ACLs/auth and firewall; open HTTP proxies are abused for spam and attacks.", None, None, ("proxy",)),
+    8118: ServiceProfile("Privoxy", Severity.HIGH, "Bind to 127.0.0.1 (listen-address).", None, None, ("proxy",)),
+    9050: ServiceProfile("Tor SOCKS", Severity.HIGH, "Bind Tor SocksPort to 127.0.0.1.", "socks5", None, ("proxy",)),
+    # --- common app servers that should sit behind a reverse proxy ------------
+    8069: ServiceProfile("Odoo", Severity.MEDIUM,
+        "Put Odoo behind nginx/TLS (proxy_mode = True) and bind to 127.0.0.1 (http_interface).", "/web/login", r"odoo", ("app",)),
+}
+UDP_INFO_PROFILES: dict[int, tuple[str, Severity, str]] = {
+    5353: ("mDNS/Avahi", Severity.LOW, "Avahi is for LAN discovery and has no place on an internet server: apt remove avahi-daemon (or firewall udp/5353)."),
+    111: ("rpcbind", Severity.MEDIUM, "rpcbind is a DDoS amplifier and NFS attack surface; remove or firewall it."),
+    161: ("SNMP", Severity.MEDIUM, "Change community strings, use SNMPv3, firewall udp/161."),
+    1900: ("SSDP/UPnP", Severity.MEDIUM, "SSDP is a DDoS amplifier; disable it on servers."),
 }
 
 SAFE_PUBLIC_PORTS = {22, 80, 443, 25, 465, 587, 993, 995, 53}
@@ -133,6 +151,7 @@ class Listener:
     port: int
     pid: int | None
     process: str
+    user: str = ""
 
 
 def listeners() -> list[Listener]:
@@ -155,14 +174,32 @@ def listeners() -> list[Listener]:
         if key in seen:
             continue
         seen.add(key)
-        pname = ""
+        pname = user = ""
         if c.pid:
             try:
-                pname = psutil.Process(c.pid).name()
+                proc = psutil.Process(c.pid)
+                pname, user = proc.name(), proc.username()
             except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pname = ""
-        out.append(Listener(key[0], ip, port, c.pid, pname))
+                pname = user = ""
+        out.append(Listener(key[0], ip, port, c.pid, pname, user))
     return out
+
+
+def probe_socks5(port: int, timeout: float) -> bool | None:
+    """SOCKS5 handshake offering only 'no authentication'. A server that
+    accepts it (reply 05 00) is an open proxy."""
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout) as s:
+            s.settimeout(timeout)
+            s.sendall(b"\x05\x01\x00")
+            reply = s.recv(2)
+    except OSError:
+        return None
+    if reply == b"\x05\x00":
+        return True
+    if reply[:1] == b"\x05":
+        return False  # 05 ff: no acceptable method -> auth required
+    return None
 
 
 def is_public_bind(ip: str) -> bool:
@@ -177,6 +214,8 @@ def probe(port: int, profile: ServiceProfile, timeout: float) -> bool | None:
     auth, None if it could not be probed."""
     if not profile.probe_path:
         return None
+    if profile.probe_path == "socks5":
+        return probe_socks5(port, timeout)
     url = f"http://127.0.0.1:{port}{profile.probe_path}"
     try:
         r = httpx.get(url, timeout=timeout, follow_redirects=False,
@@ -224,12 +263,22 @@ def run(ctx: Context) -> list[Finding]:
         if profile is None:
             if l.port in SAFE_PUBLIC_PORTS:
                 continue
+            if l.proto == "udp" and l.port in UDP_INFO_PROFILES:
+                name, usev, ufix = UDP_INFO_PROFILES[l.port]
+                findings.append(Finding(module=NAME, check="exposed-service", severity=usev,
+                                        title=f"{name} on udp/{l.port} is bound to {l.ip}", fix=ufix,
+                                        evidence={"port": l.port, "proto": l.proto, "pid": l.pid, "process": l.process, "service": name}))
+                continue
+            if l.proto == "udp" and l.port >= 32768:
+                continue  # ephemeral client sockets (avahi, DNS resolvers) are not services
+            as_root = l.user == "root" and l.port > 1024
             findings.append(Finding(
-                module=NAME, check="public-listener", severity=Severity.INFO,
-                title=f"{l.proto}/{l.port} ({l.process or 'unknown'}) listens on {l.ip}",
-                detail="Unknown service on a public interface. Confirm it is meant to be reachable from the internet.",
-                fix="Bind to 127.0.0.1 or restrict with the firewall if it is internal.",
-                evidence={"port": l.port, "proto": l.proto, "pid": l.pid, "process": l.process},
+                module=NAME, check="public-listener", severity=Severity.LOW if as_root else Severity.INFO,
+                title=f"{l.proto}/{l.port} ({l.process or 'unknown'}) listens on {l.ip}" + (" as root" if as_root else ""),
+                detail="Unknown service on a public interface. Confirm it is meant to be reachable from the internet."
+                       + (" It runs as root: any bug in it is a root compromise." if as_root else ""),
+                fix="Bind to 127.0.0.1 behind a reverse proxy, or restrict with the firewall." + (" Run it as a dedicated user." if as_root else ""),
+                evidence={"port": l.port, "proto": l.proto, "pid": l.pid, "process": l.process, "user": l.user},
             ))
             continue
 
@@ -247,9 +296,11 @@ def run(ctx: Context) -> list[Finding]:
         title = f"{profile.name} on {l.proto}/{l.port} is bound to {l.ip}"
         if auth_state == "no-auth":
             title += " and answers WITHOUT authentication"
+        if "proxy" in profile.tags and auth_state != "auth-required":
+            sev = Severity.CRITICAL  # an open relay is actively abused, not merely exposed
         findings.append(Finding(
             module=NAME, check="exposed-service", severity=sev, title=title,
-            detail=f"Process: {l.process or 'unknown'} (pid {l.pid}). Tags: {', '.join(profile.tags)}. Auth probe: {auth_state}.",
+            detail=f"Process: {l.process or 'unknown'} (pid {l.pid}, user {l.user or '?'}). Tags: {', '.join(profile.tags)}. Auth probe: {auth_state}.",
             fix=profile.fix,
             evidence={"port": l.port, "proto": l.proto, "pid": l.pid, "process": l.process,
                       "auth": auth_state, "service": profile.name},

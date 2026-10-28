@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 import httpx
 
 from .models import Severity
-from .popular import KNOWN_SLOPSQUATS, POPULAR_NPM, POPULAR_PYPI
+from .popular import KNOWN_LEGIT_NEAR_NAMES, KNOWN_SLOPSQUATS, POPULAR_NPM, POPULAR_PYPI
 
 UA = {"User-Agent": "guardian-check-package"}
 
@@ -64,7 +64,7 @@ def normalize(name: str) -> str:
 def typosquat_candidates(name: str, ecosystem: str, max_distance: int = 2) -> list[str]:
     pool = POPULAR_NPM if ecosystem == "npm" else POPULAR_PYPI
     n = normalize(name)
-    if n in {normalize(p) for p in pool} or len(n) < 4:
+    if n in {normalize(p) for p in pool} or len(n) < 4 or n in KNOWN_LEGIT_NEAR_NAMES.get(ecosystem, set()):
         return []
     # Short names reach too many popular packages within two edits (fine -> vite),
     # so require a single-edit match for them.

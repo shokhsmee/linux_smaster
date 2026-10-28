@@ -36,11 +36,14 @@ class Finding(BaseModel):
     fix: str = ""
     evidence: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
     seen_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+    # Stable identity for findings whose title carries changing numbers
+    # ("90 failed logins from X"); defaults to the title.
+    key: str | None = None
 
     @property
     def fingerprint(self) -> str:
-        key = f"{self.module}|{self.check}|{self.title}"
-        return hashlib.sha256(key.encode()).hexdigest()[:16]
+        ident = f"{self.module}|{self.check}|{self.key or self.title}"
+        return hashlib.sha256(ident.encode()).hexdigest()[:16]
 
 
 class ModuleResult(BaseModel):

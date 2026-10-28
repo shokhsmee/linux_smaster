@@ -35,6 +35,9 @@ KNOWN_AI_PROCS = {"claude", "codex", "gemini", "aider", "opencode", "cursor", "c
 INTERACTIVE_OR_BROWSER = {"firefox", "chrome", "chromium", "curl", "wget", "ssh", "git", "apt", "apt-get", "dnf", "yum", "snapd", "telegram-desktop", "discord"}
 
 
+PROXY_PORTS = {1080, 3128, 8118, 9050, 8888, 8080}
+
+
 @dataclass
 class Conn:
     pid: int | None
@@ -43,6 +46,7 @@ class Conn:
     raddr: str
     rport: int
     status: str
+    lport: int = 0
 
 
 def connections() -> list[Conn]:
@@ -67,7 +71,7 @@ def connections() -> list[Conn]:
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     cache[c.pid] = ("", "")
             name, user = cache[c.pid]
-        out.append(Conn(c.pid, name, user, ip, port, c.status))
+        out.append(Conn(c.pid, name, user, ip, port, c.status, c.laddr.port if c.laddr else 0))
     return out
 
 
@@ -92,8 +96,28 @@ def analyze(conns: list[Conn], names: dict[str, str], scan_threshold: int = 15) 
     for c in conns:
         per_proc[(c.pid, c.name)].append(c)
 
+    # Inbound clients of a proxy port: sockets accepted by a proxy (or with no
+    # owning process at all) that come from many public addresses mean the
+    # host is being used as an open relay.
+    inbound: dict[int, set[str]] = defaultdict(set)
+    for c in conns:
+        if c.lport in PROXY_PORTS and c.rport > 1024:
+            inbound[c.lport].add(c.raddr)
+    for lport, clients in inbound.items():
+        if len(clients) >= 2 or len([c for c in conns if c.lport == lport]) >= scan_threshold:
+            findings.append(Finding(module=NAME, check="open-relay-clients", severity=Severity.CRITICAL, key=f"lport:{lport}",
+                                    title=f"{len([c for c in conns if c.lport == lport])} connections from {len(clients)} public address(es) are relaying through local port {lport}",
+                                    fix="This looks like an open proxy being abused. Stop the proxy service (or add auth and bind it to localhost) and firewall the port.",
+                                    evidence={"lport": lport, "clients": ", ".join(sorted(clients)[:5])}))
+    # Sockets accepted on a proxy port are the relay's inbound side, not this
+    # host's own egress: skip them so the relay is reported once, above.
+    conns = [c for c in conns if c.lport not in inbound]
+    per_proc = defaultdict(list)
+    for c in conns:
+        per_proc[(c.pid, c.name)].append(c)
+
     for (pid, pname), cs in per_proc.items():
-        label = f"{pname or 'unknown'} (pid {pid})"
+        label = f"{pname or 'unknown'} (pid {pid})" if pid else "socket with no owning process (kernel/proxied)"
         base_ev = {"pid": pid, "process": pname}
         for c in cs:
             host = names.get(c.raddr, "")

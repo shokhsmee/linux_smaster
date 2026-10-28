@@ -63,7 +63,9 @@ def find_projects(roots: list[Path], depth: int = 4) -> tuple[list[Path], list[P
             p = Path(dirpath)
             if len(p.parts) - base_depth >= depth:
                 dirnames[:] = []
-            dirnames[:] = [d for d in dirnames if d not in ("node_modules", ".git", ".cache", "snap", ".local") and not d.startswith(".npm")]
+            dirnames[:] = [d for d in dirnames if d not in ("node_modules", ".git", ".cache", "snap", ".local",
+                                                            ".vscode-server", ".vscode-remote", ".cursor-server", ".vscode")
+                           and not d.startswith(".npm")]
             if "package.json" in filenames and (p / "node_modules").is_dir():
                 node.append(p)
             if p.name == "site-packages":

@@ -148,6 +148,26 @@ def _snippet(path: str, n: int = 300) -> str:
     return (text[:n] + "…") if len(text) > n else text
 
 
+_OWNER_CACHE: dict[str, str | None] = {}
+
+
+def _package_owned(path: str) -> str | None:
+    """Name of the package that ships `path`, or None."""
+    if path in _OWNER_CACHE:
+        return _OWNER_CACHE[path]
+    owner: str | None = None
+    if have("dpkg"):
+        rc, out, _ = sh(["dpkg", "-S", path], timeout=15)
+        if rc == 0 and ":" in out:
+            owner = out.split(":", 1)[0].strip().split(",")[0]
+    elif have("rpm"):
+        rc, out, _ = sh(["rpm", "-qf", "--qf", "%{NAME}", path], timeout=15)
+        if rc == 0:
+            owner = out.strip()
+    _OWNER_CACHE[path] = owner
+    return owner
+
+
 def content_checks(ctx: Context) -> list[Finding]:
     findings: list[Finding] = []
 
@@ -167,10 +187,13 @@ def content_checks(ctx: Context) -> list[Finding]:
         text = read_text(p, limit=65536) or ""
         m = SUSPICIOUS_CMD.search(text)
         if m:
-            findings.append(Finding(module=NAME, check="suspicious-command", severity=Severity.HIGH,
-                                    title=f"Suspicious command in {s}: '{m.group(0)[:60]}'",
-                                    detail=_snippet(s), fix="Inspect the file; download-and-execute or /tmp binaries in persistence files are a classic malware sign.",
-                                    evidence={"path": s, "match": m.group(0)[:100]}))
+            owned = _package_owned(s)
+            findings.append(Finding(module=NAME, check="suspicious-command", severity=Severity.LOW if owned else Severity.HIGH,
+                                    title=f"Suspicious command in {s}: '{m.group(0)[:60]}'" + (f" (shipped by package {owned})" if owned else ""),
+                                    detail=_snippet(s),
+                                    fix=("Distro-shipped script; verify it is unmodified with `debsums -c " + owned + "` / `rpm -V`." if owned else
+                                         "Inspect the file; download-and-execute or /tmp binaries in persistence files are a classic malware sign."),
+                                    evidence={"path": s, "match": m.group(0)[:100], "package": owned or ""}))
 
     # authorized_keys: options that allow command execution without a shell, or keys without comments.
     for p in watched_paths([]):
