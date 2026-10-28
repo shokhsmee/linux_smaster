@@ -19,6 +19,18 @@ research that drives the module plan.
 | `secrets` | Leaked AI/cloud keys in `.env`, compose files, shell history, agent configs, `/proc/*/environ`; world-readable secret files |
 | `persistence` | Baseline + diff of cron, systemd, `authorized_keys`, sudoers, `ld.so.preload`, PAM, shell rc files |
 
+## Phase 2 modules
+
+| Module | What it checks |
+|---|---|
+| `process_behavior` | Binaries running from `/tmp`, `/dev/shm` or memfd; deleted executables; system-name mimicry; web servers spawning shells; download-and-execute command lines; known miners; high CPU from unpackaged binaries |
+| `rootkit` | PIDs hidden from `/proc` listing; new eBPF programs and kernel modules since baseline; unsigned/out-of-tree taint; setuid binaries whose page cache differs from disk (Copy Fail); `LD_PRELOAD` in env files |
+| `kernel_hardening` | Sysctls (unprivileged BPF, ptrace scope, kptr_restrict, protected_* …), unprivileged user namespaces, risky auto-loadable modules (`algif_aead`, `ksmbd`, `dccp` …), old `sudo`, lockdown mode, AppArmor/SELinux |
+| `agent_guard` | AI coding agents and MCP servers: bypass flags (`--dangerously-skip-permissions`, `--yolo`), launched from `npm`/`pip` install chains, running as root or unsandboxed, credential files open; injected MCP servers, hooks and prompt-injection text in `.mcp.json`, `settings.json`, `CLAUDE.md`, `AGENTS.md` … with change tracking |
+| `egress` | Outbound connections per process: mining-pool and IRC ports, Telegram/Discord/pastebin exfil from daemons, LLM API calls from unexpected binaries, worm-style scanning of admin ports |
+
+All modules work from `/proc`, sysfs and the package manager — no eBPF or auditd required. `guardian modules` lists them.
+
 ## Install
 
 ```bash

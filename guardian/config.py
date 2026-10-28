@@ -58,6 +58,34 @@ class PersistenceConfig(BaseModel):
     extra_paths: list[str] = Field(default_factory=list)
 
 
+class ProcessConfig(BaseModel):
+    enabled: bool = True
+    cpu_sample_seconds: float = 1.0
+    cpu_threshold: float = 85.0
+
+
+class RootkitConfig(BaseModel):
+    enabled: bool = True
+    pid_probe_limit: int = 131072  # brute-force /proc/N up to this PID
+    page_cache_check: bool = True
+
+
+class KernelConfig(BaseModel):
+    enabled: bool = True
+
+
+class AgentsConfig(BaseModel):
+    enabled: bool = True
+    extra_roots: list[str] = Field(default_factory=list)  # extra dirs holding agent configs/repos
+
+
+class EgressConfig(BaseModel):
+    enabled: bool = True
+    reverse_dns: bool = True
+    dns_timeout: float = 1.0
+    scan_threshold: int = 15
+
+
 class AlertConfig(BaseModel):
     min_severity: str = "medium"
     telegram_bot_token: str = ""
@@ -73,6 +101,11 @@ class Config(BaseModel):
     patches: PatchConfig = Field(default_factory=PatchConfig)
     secrets: SecretsConfig = Field(default_factory=SecretsConfig)
     persistence: PersistenceConfig = Field(default_factory=PersistenceConfig)
+    process: ProcessConfig = Field(default_factory=ProcessConfig)
+    rootkit: RootkitConfig = Field(default_factory=RootkitConfig)
+    kernel: KernelConfig = Field(default_factory=KernelConfig)
+    agents: AgentsConfig = Field(default_factory=AgentsConfig)
+    egress: EgressConfig = Field(default_factory=EgressConfig)
     alerts: AlertConfig = Field(default_factory=AlertConfig)
 
     def resolve_state_dir(self) -> Path:

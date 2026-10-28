@@ -37,3 +37,28 @@ telegram_bot_token = ""
 telegram_chat_id = ""
 slack_webhook = ""
 generic_webhook = ""
+
+# ---- Phase 2 modules ----
+
+[process]
+enabled = true
+cpu_sample_seconds = 1.0  # how long to sample CPU per run
+cpu_threshold = 85.0      # % CPU from an unpackaged binary that triggers a finding
+
+[rootkit]
+enabled = true
+pid_probe_limit = 131072  # brute-force /proc/N up to this PID to find hidden processes
+page_cache_check = true   # compare setuid binaries in page cache vs disk (Copy Fail)
+
+[kernel]
+enabled = true
+
+[agents]
+enabled = true
+extra_roots = []          # extra directories that hold repos/agent configs, e.g. ["/srv/apps"]
+
+[egress]
+enabled = true
+reverse_dns = true
+dns_timeout = 1.0
+scan_threshold = 15       # distinct hosts on admin ports from one process = worm behaviour

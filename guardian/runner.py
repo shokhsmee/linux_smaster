@@ -6,7 +6,7 @@ import time
 import traceback
 
 from .models import Finding, ModuleResult
-from .modules import Context, all_modules
+from .modules import Context, all_modules, config_key
 
 
 def run_modules(ctx: Context, only: list[str] | None = None) -> list[ModuleResult]:
@@ -15,7 +15,7 @@ def run_modules(ctx: Context, only: list[str] | None = None) -> list[ModuleResul
         name = mod.NAME
         if only and name not in only:
             continue
-        section = getattr(ctx.config, name if name != "ssh_guard" else "ssh")
+        section = getattr(ctx.config, config_key(mod))
         if not getattr(section, "enabled", True):
             results.append(ModuleResult(module=name, skipped="disabled in config"))
             continue

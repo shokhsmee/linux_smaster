@@ -16,6 +16,14 @@ class Context:
 
 
 def all_modules():
+    # Phase 1
     from . import exposure, patches, persistence, secrets, ssh_guard
+    # Phase 2
+    from . import agent_guard, egress, kernel_hardening, process_behavior, rootkit
 
-    return [exposure, ssh_guard, patches, secrets, persistence]
+    return [exposure, ssh_guard, patches, secrets, persistence,
+            process_behavior, rootkit, kernel_hardening, agent_guard, egress]
+
+
+def config_key(mod) -> str:
+    return getattr(mod, "CONFIG_KEY", "ssh" if mod.NAME == "ssh_guard" else mod.NAME)

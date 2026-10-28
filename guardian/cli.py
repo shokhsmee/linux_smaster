@@ -43,6 +43,14 @@ def version() -> None:
 
 
 @app.command()
+def modules() -> None:
+    """List available modules."""
+    for m in all_modules():
+        doc = (m.__doc__ or "").strip().splitlines()[0]
+        console.print(f"[bold]{m.NAME:<18}[/] {doc}")
+
+
+@app.command()
 def audit(
     config: ConfigOpt = None,
     json_out: Annotated[bool, typer.Option("--json", help="Print JSON instead of a table")] = False,
@@ -66,7 +74,7 @@ def audit(
 
 @app.command()
 def scan(
-    module: Annotated[str, typer.Argument(help="Module name: " + ", ".join(m for m in ["exposure", "ssh_guard", "patches", "secrets", "persistence"]))],
+    module: Annotated[str, typer.Argument(help="Module name (see `guardian modules`)")],
     config: ConfigOpt = None,
     json_out: Annotated[bool, typer.Option("--json")] = False,
 ) -> None:
