@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, tzinfo
 from pathlib import Path
 
 from ..models import Finding, Severity
@@ -85,8 +85,13 @@ def read_auth_lines(paths: list[str], window: timedelta) -> list[str]:
     return lines
 
 
-def _line_time(line: str, now: datetime) -> datetime | None:
-    # ISO (journald short-iso / rsyslog RFC3339) or classic "Oct 28 12:00:00".
+def _line_time(line: str, now: datetime, tz: tzinfo | None = None) -> datetime | None:
+    """Parse the timestamp at the start of a log line.
+
+    ISO lines (journald short-iso, rsyslog RFC3339) carry their own offset.
+    Classic "Oct 28 12:00:00" lines are written by rsyslog in the host's local
+    time, so they are interpreted in `tz` (default: the local timezone).
+    """
     m = re.match(r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:[+-]\d{2}:?\d{2}|Z)?)", line)
     if m:
         try:
@@ -98,7 +103,7 @@ def _line_time(line: str, now: datetime) -> datetime | None:
     if m:
         try:
             t = datetime.strptime(f"{now.year} {m.group(1)} {m.group(2)} {m.group(3)}:{m.group(4)}:{m.group(5)}", "%Y %b %d %H:%M:%S")
-            t = t.replace(tzinfo=UTC)
+            t = t.replace(tzinfo=tz) if tz is not None else t.astimezone()  # naive -> local
             if t > now + timedelta(days=1):  # year rollover
                 t = t.replace(year=now.year - 1)
             return t
@@ -107,15 +112,18 @@ def _line_time(line: str, now: datetime) -> datetime | None:
     return None
 
 
-def analyze_auth(lines: list[str], window: timedelta, now: datetime | None = None) -> tuple[Counter[str], dict[str, set[str]], Counter[str]]:
-    """Return (failures per IP, accepted logins user->ips, invalid usernames)."""
+def analyze_auth(lines: list[str], window: timedelta, now: datetime | None = None,
+                 tz: tzinfo | None = None) -> tuple[Counter[str], dict[str, set[str]], Counter[str]]:
+    """Return (failures per IP, accepted logins user->ips, invalid usernames).
+
+    `tz` is the timezone of classic syslog timestamps (default: local time)."""
     now = now or datetime.now(UTC)
     cutoff = now - window
     failures: Counter[str] = Counter()
     accepted: dict[str, set[str]] = defaultdict(set)
     users: Counter[str] = Counter()
     for line in lines:
-        t = _line_time(line, now)
+        t = _line_time(line, now, tz)
         if t is not None and t < cutoff:
             continue
         m = FAIL_KEYWORDS.search(line)

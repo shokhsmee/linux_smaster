@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from guardian.models import Severity
 from guardian.modules import patches, ssh_guard
@@ -14,11 +14,25 @@ def test_analyze_auth_counts_failures_in_window():
         "Oct 28 09:00:00 srv sshd[1]: Failed password for root from 45.33.32.157 port 1 ssh2",  # outside window
         "2026-10-28T11:55:00+00:00 srv sshd[1]: Accepted publickey for deploy from 1.1.1.1 port 5 ssh2",
     ]
-    fails, accepted, users = ssh_guard.analyze_auth(lines, timedelta(minutes=60), now=NOW)
+    fails, accepted, users = ssh_guard.analyze_auth(lines, timedelta(minutes=60), now=NOW, tz=UTC)
     assert fails["45.33.32.156"] == 3
     assert "45.33.32.157" not in fails
     assert accepted["deploy"] == {"1.1.1.1"}
     assert users["admin"] == 1
+
+
+def test_classic_syslog_timestamps_are_local_time():
+    # rsyslog writes "Oct 28 07:30:00" in the host's local time. On a host at
+    # UTC-5 that line is 12:30 UTC; treating it as UTC would push it 5 hours
+    # into the past and silently drop a live brute-force burst from the window.
+    lines = ["Oct 28 07:30:00 srv sshd[1]: Failed password for root from 45.33.32.156 port 1 ssh2"]
+    west = timezone(timedelta(hours=-5))
+    fails, _, _ = ssh_guard.analyze_auth(lines, timedelta(minutes=60), now=NOW, tz=west)
+    assert fails["45.33.32.156"] == 1
+    fails, _, _ = ssh_guard.analyze_auth(lines, timedelta(minutes=60), now=NOW, tz=UTC)
+    assert fails == {}
+    # Default (tz=None) uses the process' local timezone.
+    assert ssh_guard._line_time(lines[0], NOW).utcoffset() == datetime.now().astimezone().utcoffset()
 
 
 def test_sshd_rules_and_new_login(ctx, monkeypatch):
