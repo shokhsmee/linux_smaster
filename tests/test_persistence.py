@@ -42,3 +42,18 @@ def test_baseline_then_detect_changes(ctx, monkeypatch, tmp_path):
 
     job.unlink()
     assert {f.check for f in persistence.run(ctx)} == {"removed-file", "suspicious-command"}
+
+
+def test_merged_usr_aliases_are_walked_once(monkeypatch, tmp_path):
+    # Ubuntu/Debian: /lib -> usr/lib, so /lib/systemd/system and
+    # /usr/lib/systemd/system are the same directory and must be baselined once.
+    real = tmp_path / "usr" / "lib" / "systemd" / "system"
+    real.mkdir(parents=True)
+    (real / "ssh.service").write_text("[Unit]\n")
+    (tmp_path / "lib").symlink_to(tmp_path / "usr" / "lib", target_is_directory=True)
+    alias = tmp_path / "lib" / "systemd" / "system"
+    monkeypatch.setattr(persistence, "WATCH_DIRS", (str(real), str(alias)))
+    monkeypatch.setattr(persistence, "WATCH_FILES", ())
+    monkeypatch.setattr(persistence, "HOME_FILES", ())
+    paths = persistence.watched_paths([])
+    assert paths == [real / "ssh.service"]

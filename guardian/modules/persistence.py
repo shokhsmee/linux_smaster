@@ -63,12 +63,20 @@ def _digest(path: Path) -> tuple[str, int, int] | None:
 
 def watched_paths(extra: list[str]) -> list[Path]:
     paths: list[Path] = []
+    seen_dirs: set[str] = set()
     for d in WATCH_DIRS + tuple(extra):
         p = Path(d)
-        if p.is_dir():
-            for sub in p.rglob("*"):
-                if sub.is_file() or sub.is_symlink():
-                    paths.append(sub)
+        if not p.is_dir():
+            continue
+        # On merged-/usr systems /lib/systemd/system is /usr/lib/systemd/system;
+        # baseline each real directory once so files are not reported twice.
+        real = os.path.realpath(p)
+        if real in seen_dirs:
+            continue
+        seen_dirs.add(real)
+        for sub in p.rglob("*"):
+            if sub.is_file() or sub.is_symlink():
+                paths.append(sub)
     for f in WATCH_FILES:
         p = Path(f)
         if p.is_file() or p.is_symlink():
