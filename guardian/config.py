@@ -86,6 +86,29 @@ class EgressConfig(BaseModel):
     scan_threshold: int = 15
 
 
+class PackagesConfig(BaseModel):
+    enabled: bool = True
+    extra_roots: list[str] = Field(default_factory=list)
+    project_depth: int = 4
+
+
+class ContainersConfig(BaseModel):
+    enabled: bool = True
+    scan_images: bool = True
+    scan_history: bool = True
+    max_images: int = 50
+
+
+class HubConfig(BaseModel):
+    url: str = ""     # e.g. https://hub.example.com ; set GUARDIAN_HUB_URL / GUARDIAN_HUB_TOKEN in env
+    token: str = ""
+
+
+class TriageConfig(BaseModel):
+    model: str = "claude-opus-5-5"
+    effort: str = "high"
+
+
 class AlertConfig(BaseModel):
     min_severity: str = "medium"
     telegram_bot_token: str = ""
@@ -106,6 +129,10 @@ class Config(BaseModel):
     kernel: KernelConfig = Field(default_factory=KernelConfig)
     agents: AgentsConfig = Field(default_factory=AgentsConfig)
     egress: EgressConfig = Field(default_factory=EgressConfig)
+    packages: PackagesConfig = Field(default_factory=PackagesConfig)
+    containers: ContainersConfig = Field(default_factory=ContainersConfig)
+    hub: HubConfig = Field(default_factory=HubConfig)
+    triage: TriageConfig = Field(default_factory=TriageConfig)
     alerts: AlertConfig = Field(default_factory=AlertConfig)
 
     def resolve_state_dir(self) -> Path:
@@ -140,3 +167,5 @@ def _env_override(cfg: Config) -> None:
     cfg.alerts.telegram_chat_id = env.get("GUARDIAN_TELEGRAM_CHAT", cfg.alerts.telegram_chat_id)
     cfg.alerts.slack_webhook = env.get("GUARDIAN_SLACK_WEBHOOK", cfg.alerts.slack_webhook)
     cfg.alerts.generic_webhook = env.get("GUARDIAN_WEBHOOK", cfg.alerts.generic_webhook)
+    cfg.hub.url = env.get("GUARDIAN_HUB_URL", cfg.hub.url)
+    cfg.hub.token = env.get("GUARDIAN_HUB_TOKEN", cfg.hub.token)

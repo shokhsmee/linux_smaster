@@ -31,6 +31,23 @@ research that drives the module plan.
 
 All modules work from `/proc`, sysfs and the package manager — no eBPF or auditd required. `guardian modules` lists them.
 
+## Phase 3: supply chain, containers, fleet, AI triage
+
+| Piece | What it does |
+|---|---|
+| `package_provenance` module | Scans installed `node_modules` and Python site-packages for worm artifacts (Shai-Hulud, s1ngularity, 0x2ai), download-and-execute install hooks, typosquats and documented AI-hallucinated package names; wiper lines in shell rc files; missing lockfiles; npm lifecycle scripts enabled |
+| `containers` module | Docker/Podman: secrets in container/image ENV and build history, `--privileged`, docker.sock and sensitive host mounts, host PID/network namespaces, dangerous capabilities, root user, unpinned `latest` images |
+| `guardian check-package npm\|pypi NAME…` | Slopsquatting guard to run **before** installing an AI-suggested package: does it exist, how old, downloads, install hooks, one typo from a popular name |
+| `guardian hub serve` + `guardian audit --push` | Tiny fleet view: hosts push a summary, the hub shows one page with scores and findings per host (SQLite, stdlib HTTP, bind to localhost + TLS proxy) |
+| `guardian triage` | Sends the findings (masked, no secret values) to Claude and prints a ranked, plain-language fix plan plus likely false positives. Advice only — nothing is applied |
+
+```bash
+guardian check-package pypi reqeusts          # -> CRITICAL: does not exist, did you mean requests?
+guardian hub serve --token "$(openssl rand -hex 24)" --port 8787
+GUARDIAN_HUB_URL=http://hub:8787 GUARDIAN_HUB_TOKEN=... guardian audit --push
+ANTHROPIC_API_KEY=... guardian triage
+```
+
 ## Install
 
 ```bash

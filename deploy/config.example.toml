@@ -62,3 +62,24 @@ enabled = true
 reverse_dns = true
 dns_timeout = 1.0
 scan_threshold = 15       # distinct hosts on admin ports from one process = worm behaviour
+
+# ---- Phase 3 ----
+
+[packages]
+enabled = true
+extra_roots = []          # extra directories with projects to scan for node_modules / venvs
+project_depth = 4
+
+[containers]
+enabled = true
+scan_images = true
+scan_history = true       # scan `docker history` for secrets in build args (slower)
+max_images = 50
+
+[hub]
+# url = "https://hub.example.com"   # or GUARDIAN_HUB_URL / GUARDIAN_HUB_TOKEN in /etc/guardian/env
+# token = ""
+
+[triage]
+model = "claude-opus-5-5"
+effort = "high"

@@ -20,9 +20,12 @@ def all_modules():
     from . import exposure, patches, persistence, secrets, ssh_guard
     # Phase 2
     from . import agent_guard, egress, kernel_hardening, process_behavior, rootkit
+    # Phase 3
+    from . import containers, package_provenance
 
     return [exposure, ssh_guard, patches, secrets, persistence,
-            process_behavior, rootkit, kernel_hardening, agent_guard, egress]
+            process_behavior, rootkit, kernel_hardening, agent_guard, egress,
+            package_provenance, containers]
 
 
 def config_key(mod) -> str:
