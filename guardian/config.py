@@ -45,8 +45,10 @@ class SecretsConfig(BaseModel):
     scan_proc_environ: bool = True
     exclude_dirs: list[str] = Field(
         default_factory=lambda: [
-            "node_modules", ".git/objects", ".venv", "venv", "__pycache__",
-            ".cache", "site-packages", "dist", "build",
+            "node_modules", ".git", ".venv", "venv", "__pycache__", ".cache",
+            "site-packages", "dist", "build", "test", "tests", "testdata", "fixtures",
+            "fixture", "sample", "samples", "example", "examples", "Cellar", "gems",
+            "proc", "sys", "dev",
         ]
     )
 
