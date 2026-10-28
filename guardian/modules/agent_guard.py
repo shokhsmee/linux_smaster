@@ -219,7 +219,10 @@ def inspect_config(path: Path, text: str) -> list[Finding]:
                 for sname, s in servers.items():
                     if not isinstance(s, dict):
                         continue
-                    cmd = " ".join([str(s.get("command", ""))] + [str(a) for a in s.get("args", [])])
+                    args = s.get("args")
+                    if not isinstance(args, list):
+                        args = [args] if args else []
+                    cmd = " ".join([str(s.get("command", "")), *(str(a) for a in args)])
                     url = str(s.get("url", ""))
                     if url.startswith("http://") and "localhost" not in url and "127.0.0.1" not in url:
                         findings.append(Finding(module=NAME, check="mcp-plaintext-remote", severity=Severity.MEDIUM,

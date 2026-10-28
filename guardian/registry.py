@@ -54,7 +54,7 @@ def edit_distance(a: str, b: str, limit: int = 3) -> int:
         if min(cur) > limit:
             return limit + 1
         prev = cur
-    return prev[-1]
+    return min(prev[-1], limit + 1)
 
 
 def normalize(name: str) -> str:
