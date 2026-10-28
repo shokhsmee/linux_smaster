@@ -90,6 +90,48 @@ Set in `/etc/guardian/config.toml` or via environment:
 GUARDIAN_TELEGRAM_TOKEN, GUARDIAN_TELEGRAM_CHAT, GUARDIAN_SLACK_WEBHOOK, GUARDIAN_WEBHOOK
 ```
 
+## Hardening of Guardian itself
+
+Guardian is a security tool, so it is held to the standards it checks for:
+
+- **No secrets in the repo.** Keys and tokens come from the environment or
+  `/etc/guardian/env`; nothing sensitive is committed, and the `secrets`
+  module would flag it if it were.
+- **Pinned, audited supply chain.** `uv.lock` is installed with `--locked`,
+  every GitHub Action is pinned to a commit SHA, workflows default to
+  `permissions: contents: read`, and Dependabot proposes weekly updates for
+  Python packages and Actions.
+- **Continuous SAST and fuzzing.** Each push runs `ruff`, `bandit` and the test
+  suite, which includes [hypothesis](https://hypothesis.readthedocs.io/)
+  property tests (`tests/test_fuzz.py`) asserting that the auth-log, secret,
+  agent-config and package-name parsers never raise on arbitrary input.
+- **Sandboxed service.** `deploy/guardian.service` runs with systemd
+  hardening (`ProtectSystem=strict`, `NoNewPrivileges`,
+  `MemoryDenyWriteExecute`, capability bounding set).
+- **Signed releases.** Tags matching `v*` build the wheel and sdist with
+  `uv build` and sign them keylessly with [Sigstore](https://www.sigstore.dev/)
+  from the release workflow. See `SECURITY.md` for reporting vulnerabilities.
+
+### Verifying a release
+
+Each release attaches `guardian-<version>-py3-none-any.whl`,
+`guardian-<version>.tar.gz` and a `.sigstore.json` bundle per file. Verify that
+the file was built by this repository's release workflow for that tag:
+
+```bash
+uvx sigstore verify github \
+  --bundle guardian-0.1.0-py3-none-any.whl.sigstore.json \
+  --repository shokhsmee/linux_smaster \
+  --ref refs/tags/v0.1.0 \
+  guardian-0.1.0-py3-none-any.whl
+```
+
+`verify github` checks the certificate identity
+(`https://github.com/shokhsmee/linux_smaster/.github/workflows/release.yml@refs/tags/v0.1.0`)
+and the OIDC issuer (`https://token.actions.githubusercontent.com`) against
+the Sigstore transparency log. Install the verified wheel with `uv pip install
+guardian-0.1.0-py3-none-any.whl`.
+
 ## License
 
 AGPL-3.0-or-later.
