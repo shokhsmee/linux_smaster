@@ -1,6 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended", ":pinDigests"],
+  "extends": ["config:recommended"],
   "timezone": "Europe/Tallinn",
   "schedule": ["before 6am on monday"],
   "minimumReleaseAge": "7 days",
