@@ -8,3 +8,4 @@ build/
 *.db
 *.log
 .env
+.testout/

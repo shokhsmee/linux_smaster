@@ -50,6 +50,21 @@ guardian baseline         # (re)create the persistence baseline
 guardian watch            # loop every N minutes and alert on new findings
 ```
 
+## Testing on Linux
+
+`tests/linux/` holds a Docker harness that builds an Ubuntu 24.04 image with
+uv + Python 3.15, runs the unit tests, plants real conditions (an
+unauthenticated Ollama on 0.0.0.0:11434, a leaked key in `.env` and in a
+process environment, a `curl | sh` cron job, a non-empty `ld.so.preload`,
+sshd with password auth, a brute-force burst in `auth.log`) and asserts that
+two consecutive `guardian audit --json` runs report each of them with the
+expected severity, with the second run diffing the persistence baseline.
+
+```bash
+tests/linux/run.sh            # build + run; audit JSON lands in .testout/
+tests/linux/run.sh --shell    # same, then drop into a shell in the container
+```
+
 ## Alerts
 
 Set in `/etc/guardian/config.toml` or via environment:
